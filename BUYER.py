@@ -2,10 +2,8 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import math as mt
 import random as rn
-
 from typing import Optional, Iterator, Iterable, NamedTuple
 from itertools import chain
-
 #moduli miei
 from Utilities import Cont_distrib, gen_random_val, max_sl, almost_rnd_sl, Policy, CR
 from ITEM import Item

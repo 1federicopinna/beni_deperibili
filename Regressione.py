@@ -1,6 +1,5 @@
 import random as rn
 import statistics as stats
-import pandas
 import pandas as pd
 import joblib
 from SimulatedAnnealing import SA, objective_function, neighbor_function, check_fidelity
