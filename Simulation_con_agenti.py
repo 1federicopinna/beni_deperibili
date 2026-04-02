@@ -123,18 +123,19 @@ make_order = B.periodic_order()
 for pr in [make_order, update_w, *agent_processes]:
     env.process(pr)
 
-env.run(until = 100)
-B.wh.show_trend()
-
-#####
-# Vari print per debug e statistiche
-#####
-results = {'rev': B.tot_revenue, 'so': B.pr_stock_out, 'fr': B.fill_rt}
-print(results)
-#print("n_stockout =", B.wh.n_stock_out)
-#print("N_cycles  =", len(B.order_types['i']) + len(B.order_types['s']))
-#print("pr_stockout calcolata =", B.pr_stock_out)
-#products = B.end_products()
-#orders = B.end_orders()
+if __name__== "main":
+    env.run(until = 100)
+    B.wh.show_trend()
+    
+    #####
+    # Vari print per debug e statistiche
+    #####
+    results = {'rev': B.tot_revenue, 'so': B.pr_stock_out, 'fr': B.fill_rt}
+    print(results)
+    #print("n_stockout =", B.wh.n_stock_out)
+    #print("N_cycles  =", len(B.order_types['i']) + len(B.order_types['s']))
+    #print("pr_stockout calcolata =", B.pr_stock_out)
+    #products = B.end_products()
+    #orders = B.end_orders()
 
 

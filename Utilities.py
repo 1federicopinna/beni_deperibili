@@ -93,6 +93,7 @@ def gen_random_val(pr: Cont_distrib | Prob_mass_func) -> float:
         cdf = list(accumulate(pr.values()))
         idx = bisect.bisect_left(cdf, u) - 1  # bisect_left restituisce il primo valore >= u
         return tuple(pr.keys())[idx]
+        
 
 
 def discr_cont_distrib(Cd: Cont_distrib, values: list[int]) -> Prob_mass_func:

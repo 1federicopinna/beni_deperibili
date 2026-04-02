@@ -290,7 +290,8 @@ class Shopper:
         self.mq = min_q
         self.bh = behaviour
         self.prc:dict[float, Purchased] = {} # il dizionario che tiene traccia degli acquisti fatti istante_acquisto -> lista d'acquisto
-    
+        self.pref_idx: str= "S_"
+
     def p_quantity(self, acc_sl:Optional[Iterator[int]] = None) -> int:
         """ restituisce la quantità acquistabile """
         q = gen_random_val(self.d) # la quantità da comprare
@@ -344,6 +345,12 @@ class Shopper:
             )
 
 
+    def copy(self, _msl:Optional[int] = None, _idx: Optional[int] = None) -> Shopper:
+            """ metodo che crea una copia di Shopper con una diversa shelf life minima accettata"""
+            if _msl is None: _msl = self.msl
+            if _idx is None: _idx = self.idx
+           
+            return Shopper(env=self.env, Idx=_idx, Buyer=self.d, demand=self.d, dt=self.dt, min_sl=_msl, min_q= self.mq, behaviour=self.bh)
 
 
 # DUE NUOVI ITERATORI CHE POSSONO ESSERE USATI DAL DISCOUNT ATTRACTED SHOPPER
@@ -403,8 +410,8 @@ class Discount_Shopper(Shopper):
         # per fare prima ho solo ordinato e non ho fatto controlli, e non ho usato una property
         self.da = {s:d for s,d in sorted(discount_acceptance.items())} # discount acceptable
         self.dv: dict[float, list[int]] = self._valid_rsl() # gli sconti validi della scontistica del fornitore es. {0.3:[2, 1], 0.2:[3]}
-        
         self.d_bh:Iterator = discount_behaviour # Iteratore che definisce la scelta
+        self.pref_idx: str= "DS_"
     
     def _valid_rsl(self)-> dict[float, list[int]]: 
         # restituisce gli sconti vaidi ordinati dal maggiore al minore, a parità ordinati per shelf life
@@ -464,6 +471,27 @@ class Discount_Shopper(Shopper):
 
 
     def __repr__(self) -> str:
-        return f"Agente discount id: {self.idx}"
+        return f"Cliente Discount: {self.idx} | sl min: {self.msl} | Accetta sl: {tuple(self.da.keys())[0]} se c'è sconto del: {tuple(self.da.values())[0]*100}%\n"
    
+
+
+    
+    def copy(self, _msl: Optional[int] = None, _idx: Optional[int] = None) -> Discount_Shopper:
+        if _msl is None: _msl = self.msl
+        if _idx is None: _idx = self.idx
+
+        return Discount_Shopper(
+            self.env,      
+            _idx,      
+            self.b,        
+            self.d,        
+            self.dt,       
+            _msl,          
+            self.mq,       
+            self.bh,       
+            discount_acceptance=self.da, 
+            discount_behaviour=self.bh   
+        )
+
+
 # %%
