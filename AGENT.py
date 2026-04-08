@@ -285,6 +285,7 @@ class Shopper:
         self.idx = Idx
         self.b = Buyer # il negozio dove acqusita la merce
         self.d = demand # probabilità discreta, o continua (es. normale) per la generazione del numero di prodotti da acquistare
+        self.dt_mean = float(dt) # F. aggiunta per tenere traccia del dato float dell'intertempo
         self.dt = expon(scale = dt) # intertenmpo esponenziale tra due acquisti, con media dt (lambda = 1/dt) ... per ora questo l'ho fissato
         self.msl = min_sl
         self.mq = min_q
@@ -485,7 +486,7 @@ class Discount_Shopper(Shopper):
             _idx,      
             self.b,        
             self.d,        
-            self.dt,       
+            self.dt_mean,       
             _msl,          
             self.mq,       
             self.bh,       

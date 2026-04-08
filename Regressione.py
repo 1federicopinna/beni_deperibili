@@ -2,7 +2,7 @@ import random as rn
 import statistics as stats
 import pandas as pd
 import joblib
-from SimulatedAnnealing import SA, objective_function, neighbor_function, check_fidelity
+from SimulatedAnnealing_v2 import SA, objective_function, neighbor_function, check_fidelity
 import ast
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
@@ -10,47 +10,14 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 
 
-# def creazione_dati_old(sa: SA, n_sim: int, n_days: int, seed=None) -> list:
-#    """
-#    genera i dati di S, s, q, i(fisso=4), media della funzione obbiettivo, deviazione standard della funzione
-#    obbiettivo. La media e la deviazione standard sono basate su 20 prove simulative con la stessa politica (S, s, i).
-#    """
-#    i = 4
-#    if seed is None:
-#        seed = list(range(1, 151, 5))  # default riproducibile
-#
-#    cont_S = uniform(loc=600, scale=300)  # continuo
-#    disc_S = discr_cont_distrib(cont_S, list(range(600, 901, 10)))  # discreto step=5
-#
-#    cont_s = uniform(loc=200, scale=220)  # continuo
-#    disc_s = discr_cont_distrib(cont_s, list(range(200, 421, 10)))  # discreto step=5
-#
-#    ris = []
-#    for j in range(n_sim):
-#        S = gen_random_val(disc_S)
-#        s = gen_random_val(disc_s)
-#        results = sa.simulate(S, s, i, seed, n_days=n_days)
-#        # {'revenues': [], 'stock_out_prob': [], 'fill_rate': [],
-#        # 'average_oh': [], 'I_triggered': [], 'lost': [], 'n_days': n_days}
-#        of_corr = sa.f_obj(results)
-#        len_of_corr = len(of_corr)
-#        of_curr_avg = stats.mean(of_corr)
-#        of_curr_std = stats.stdev(of_corr)
-#        ris.append((S, s, i, len_of_corr, of_corr, of_curr_avg, of_curr_std))
-#        print(f"Processato il ciclo n: {j}. Risultati fo:\nValori: {of_corr}, \n media: {of_curr_avg}, \n deviazione "
-#              f"standard: {of_curr_std}")
-#
-#    return ris
-
-
-def creazione_dati(sa: SA, n_sim: int, n_days: int, seed=None) -> list:
-    i = 4
+def creazione_dati(sa: SA, n_sim: int, n_days: int, seed=None, i=4) -> list:
+    
     # se non fornisco un seed ne do uno deterministico di 30 valori
     if seed is None:
         seed = list(range(1, 151, 5))
 
-    valori_S = list(range(600, 901, 10))
-    valori_s = list(range(200, 421, 10))
+    valori_S = list(range(16417, 23933, 260))  # passo 100
+    valori_s = list(range(6567, 13165, 260))
 
     rng = rn.Random(str(seed)) # str(seed) serve ad usare tutti i valori della lista seed per la generazione di n
     # casuali genera l'hash della stringa
@@ -87,11 +54,12 @@ def creazione_dati(sa: SA, n_sim: int, n_days: int, seed=None) -> list:
     return ris
 
 
-def list_to_df(ris: list) -> pandas.DataFrame:
+
+def list_to_df(ris: list) -> pd.DataFrame:
     return pd.DataFrame(ris, columns=['S', 's', 'i', 'n_fo', 'fo_list', 'Avg_fo', 'Std_fo'])
 
 
-def save_df(df: pandas.DataFrame):
+def save_df(df: pd.DataFrame):
     df.to_csv('Mod_reg_poli/MatriceX_Dati.csv', index=False, sep=";")
 
 
@@ -150,7 +118,7 @@ def regressione():
 
     y_pred = model.predict(X_test)
 
-    print("R^2:", r2_score(y_test, y_pred))
+    print("Regressione effettuata: R^2:", r2_score(y_test, y_pred))
 
 
 def test_modello_R2(nome_modello="modello_pol_fo.pkl"):
@@ -268,11 +236,11 @@ def aggiornamento_X(S, s, i, fo, df_path=r"Mod_reg_poli\MatriceX_Dati.csv"):
 
 
 ####### AVVIO CODICE #######
-daily_penalty = 1380  # riscritto per non rieseguire il codice
-n_days = 80  # 20*I
+daily_penalty = 951.91 # riscritto per non rieseguire il codice
+n_days = 80  # anche se ho messo I =1 
 f_obj = objective_function(target_fr=0.95, daily_penalty=daily_penalty)
 
-f_ngh = neighbor_function(SM=900, Sm=600, sM=420, sm=200,
+f_ngh = neighbor_function(SM=23933, Sm=16417, sM=13165, sm=6567,
                           # dq=(-20, -10, 10, 20),  # variazioni di q = (S - s)
                           dq=(-80, -40, -20, -10, 10, 20, 40, 80),
                           prob=(0.4, 0.4, 0.2)  # probabilità di agire solo su S, solo su s, su entrambi
@@ -282,5 +250,6 @@ f_fid = check_fidelity
 sa = SA(f_obj=f_obj, f_ngh=f_ngh, f_fid=f_fid, fidelity={1: 2 ** 2, 2: 2 ** 3, 3: 2 ** 4})  # creiamo l'oggetto sa
 
 # Creazione del modello
-# regressione()
-# test_modello(nome_modello="modello_pol_fo.pkl")
+
+if __name__ == '__main__':
+    regressione()

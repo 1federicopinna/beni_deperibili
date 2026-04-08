@@ -323,9 +323,9 @@ class Buyer:
         while True:
 
             # STAMPA STATO MAGAZZINO A INIZIO GIORNO
-            day = int(self.env.now)
-            wh_state = {rsl: len(items) for rsl, items in sorted(self.wh.wh.items())} if self.wh.wh else {}
-            print(f"---- Giorno [{day}] ---- Stato del magazzino -> {wh_state}")
+            #day = int(self.env.now)
+            #wh_state = {rsl: len(items) for rsl, items in sorted(self.wh.wh.items())} if self.wh.wh else {}
+            #print(f"---- Giorno [{day}] ---- Stato del magazzino -> {wh_state}")
             
             times = [1/n_receiv for i in range(1, n_receiv)] # gli istanti in cui si guarda se è arrivato qualcosa
             for dt in times:
