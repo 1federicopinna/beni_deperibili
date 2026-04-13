@@ -8,15 +8,44 @@ import time
 from scipy.stats import norm, triang
 from typing import Optional, Iterable, Callable
 from Utilities import discr_cont_distrib, Theoretical_SsI_Values, Costs, Policy, CR
-from ITEM import Item
 from VENDOR import Vendor
-from BUYER import Warehouse, Buyer
-from AGENT import Warehouse_2, Discount, Shopper, Discount_Shopper, max_sl
-#from Regressione import model_predict, aggiornamento_X, aggiornamento_modello
+from BUYER import Buyer
+from Regressione import model_predict, aggiornamento_X, aggiornamento_modello
 import matplotlib.pyplot as plt  # Per fare il plottare i grafici fo, S, s
+
+from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
+import os
 
 Pol = Policy(s=None, S=None, I=None, m_q=50, m_qw=5, m_rsl=3, r_double=False)
 
+
+
+
+def _run_seed(args):
+    S, s, i, seed, n_days, pol, cr, lead_time, shelf_life, \
+    daily_demand, vendor_min_lt, n_shipments, pr_long_sl, n_demand_split = args
+
+    import simpy as sp
+    import random as rn
+    from VENDOR import Vendor
+    from BUYER import Buyer
+
+    rn.seed(seed)
+    env = sp.Environment()
+    V = Vendor(env, LT_distrib=lead_time, SL_distrib=shelf_life,
+               product_kind="Pr", min_lt=vendor_min_lt)
+    B = Buyer(env, vendor=V, policy=update_policy(pol, S=S, s=s, i=i),
+              costs=cr, wh=None, init_level=S, val_init=True)
+    env.process(B.update_warehouse(min_q=None, min_rsl=None, n_receiv=n_shipments))
+    env.process(B.gen_daily_demand(demand=daily_demand,
+                                   pr_long_sl=pr_long_sl,
+                                   split_factor=n_demand_split,
+                                   print_out=False))
+    env.process(B.periodic_order())
+    env.run(until=n_days)
+    return (B.tot_revenue, B.pr_stock_out, B.fill_rt,
+            B.average_oh, B.I_triggered_orders, B.lost_sales)
 
 def update_policy(old_policy: Policy, **kargs) -> Policy:
     """ Serve a modificare i valori S,s,I della policy. 
@@ -189,13 +218,13 @@ class SA:
     daily_demand = norm(2506, 113) # mu e sigma della domanda
 
     stock_out_prob: float = 0.05  # probabilità di stock_out per calcolo valori teorici
-    vendor_min_lt: float = 10  # il lead time minimo del fornitore
+    vendor_min_lt: float = 0.5  # il lead time minimo del fornitore
     n_shipments: int = 3  # numero di controlli quotidiani per vedere se è arrivato un ordine
     pr_long_shelf_life: float = 0.6  # probabilità che le persone cerchino i prodotti con scadenza più lontana
-    n_demand_split: int = 5  # numero di sotto batch in cui la domanda giornaliera viene suddivisa
+    n_demand_split: int = 5  # numero di sotto batch in cui la domanda giornaliera viene suddivisa # prima 5
 
     # COSTS & REVENUES
-    Cr = CR(sale_price=8, cost=Costs(pc=5, oc=550, dc=0.163, u=0,
+    Cr = CR(sale_price=8, cost=Costs(pc=5, oc=550, dc=0.163, u = 0.05875,
                                       #h=1.095
                                       h=1.095
                                       ))  # non consideriamo costo mancata vendita, dato che includiamo il fill rate come vincolo
@@ -292,8 +321,29 @@ class SA:
         """ confronta due soluzioni alternative s1[x11, x12, ...], s2[x12, x22,.. ], 
             e restituisce il vettore della differenze [(x11 - x12), (x21 - x22), ...] """
         return [o_new - o_old for o_new, o_old in zip(obj_new, obj_old)]
+    
+    def simulate(self, S, s, i, seeds=tuple(i for i in range(1, 6)), n_days=100):
+        """
+            uso questo simulate perché è più performante
+        """
+        args_list = [
+            (S, s, i, seed, n_days,
+             SA.Pol, SA.Cr, SA.lead_time, SA.shelf_life,
+             SA.daily_demand, SA.vendor_min_lt, SA.n_shipments,
+             SA.pr_long_shelf_life, SA.n_demand_split)
+            for seed in seeds
+        ]
 
-    def simulate(self, S: int, s: int, i: int, seeds: Iterable[int] = tuple(i for i in range(1, 6)), n_days: int = 100):
+        with Pool(processes=os.cpu_count()) as pool:
+            runs = pool.map(_run_seed, args_list)
+
+        keys = ['revenues', 'stock_out_prob', 'fill_rate',
+                'average_oh', 'I_triggered', 'lost']
+        results = {k: [r[j] for r in runs] for j, k in enumerate(keys)}
+        results['n_days'] = n_days
+        return results
+
+    def simulate_old(self, S: int, s: int, i: int, seeds: Iterable[int] = tuple(i for i in range(1, 6)), n_days: int = 100):
         """ simula per ogni seed e raccoglie:
                 ricavo, pro_babilità di stock out, fill rate, 
                     percentuale di ordini triggherati da I, ordini persi """
@@ -356,7 +406,7 @@ class SA:
         nT = mt.ceil(mt.log(T_end / T_start) / mt.log(T_cooling_rate))  # numero di ere (periodi a temperatura costante)
         return nT, mt.ceil(n_run / nT)
 
-    def optimize_fixed_I_new(self, i, *,  # di seguito parmetri opzionali che sono anche attributi dell'oggetto SA
+    def optimize_fixed_I(self, i, *,  # di seguito parametri opzionali che sono anche attributi dell'oggetto SA
                          T_start: Optional[float] = None, T_end: Optional[float] = None,
                          T_cooling_rate: float = 0.95,  # fattore riduzione della temperatura - cooling geometrico
                          n_days: int = 100,  # numero di giorni di ogni simulazione
@@ -438,9 +488,9 @@ class SA:
                     # se la new (che è diventata current) è maggiore o limitrofa di best simulo best e new
                     # if current_obj_reg > best_obj_reg or current_obj_reg >= best_obj_reg * (1 - 0.01):
                     if current_obj_reg > best_obj_reg:
-                        print(
-                            f"Soluzione vicina al best: current sol: {current_sol} obj_new={current_obj_reg:.1f} vs "
-                            f"best_obj*(1-0.01)={best_obj_reg * (1 - 0.01):.1f}")
+                        #print(
+                        #    f"Soluzione vicina al best: current sol: {current_sol} obj_new={current_obj_reg:.1f} vs "
+                        #    f"best_obj*(1-0.01)={best_obj_reg * (1 - 0.01):.1f}")
 
                         best_obj_sim = self.evaluate_solution(*best_sol, f=3, n_days=n_days, n_sol_run=None)
                         current_obj_sim = self.evaluate_solution(*current_sol, f=3, n_days=n_days, n_sol_run=None)
@@ -469,8 +519,8 @@ class SA:
 
                             no_improvement = 0  # azzero il contantore delle iterazioni senza miglioramenti
 
-                self.improvements[i][n_sol_run[0]] = round(best_obj_reg,
-                                                           2)  # registriamo la soluzione nel dizionario improvement, può essere la stessa di prima
+                self.improvements[i][n_sol_run[0]] = round(best_obj_reg, 2)  # registriamo la soluzione nel dizionario improvement,
+                # può essere la stessa di prima
                 self.storico_iterazioni.append((
                     n_sol_run[0],
                     round(T, 3),  # temperatura
@@ -522,7 +572,7 @@ class SA:
         else:
             return best_sol, best_obj_reg, round(time.perf_counter() - t_start, 2)
 
-    def optimize_fixed_I(self, i, *,  # di seguito parmetri opzionali che sono anche attributi dell'oggetto SA
+    def optimize_fixed_I_sim(self, i, *,  # di seguito parmetri opzionali che sono anche attributi dell'oggetto SA
                              T_start: Optional[float] = None, T_end: Optional[float] = None,
                              T_cooling_rate: float = 0.95,  # fattore riduzione della temperatura - cooling geometrico
                              n_days: int = 100,  # numero di giorni di ogni simulazione
@@ -809,7 +859,9 @@ Smin = mt.ceil(SA.Pol.I*SA.daily_demand.ppf(0.35) + smin) # 9030
 """
 if __name__ == "__main__":
 
-        ######### VALORI DI SETTAGGIO ############
+
+
+    ######### VALORI DI SETTAGGIO ############
     #sa = SA(f_obj = None, f_ngh = None, f_fid = None, fidelity = {1:1}) 
     #daily_penalty = eval_penalty(SA.Pol.S, SA.Pol.s, SA.Pol.I,
     #            p_rev = 0.05, # percentuale di variazione del ricavo 
@@ -825,15 +877,13 @@ if __name__ == "__main__":
     #print(f"Valori di Smax, Smin, smax, smin = {Smax, Smin, smax, smin}")
 
     # Funzioni del SA
-    n_days=80
     daily_penalty = 951.91
     n_days = 80  # 20*I
     f_obj = objective_function(target_fr=0.95, daily_penalty=daily_penalty)
-    f_ngh = neighbor_function(SM=23933, Sm=16417, sM=13165, sm=6567,
-                          dq=(-80, -40, -20, -10, 10, 20, 40, 80),
-                          #dq=(-20, -10, 10, 20),  # variazioni di q = (S - s)                              
-                          # dq=(-80, -40, -20, -10, 10, 20, 40, 80),
-                          # dq=(-80, -40, -20, -10, -5, -2, 2, 5, 10, 20, 40, 80),
+    f_ngh = neighbor_function(SM=23933, Sm=12000, sM=13165, sm=6567,
+                              dq=(-1200, -600, -300, -150, 150, 300, 600, 1200), # variazioni di q = (S - s)
+                          #dq=(-80, -40, -20, -10, 10, 20, 40, 80),
+                          #dq=(-20, -10, 10, 20),  # variazioni di q = (S - s)
                           prob=(0.4, 0.4, 0.2)  # probabilità di agire solo su S, solo su s, su entrambi
                           )
     f_fid = check_fidelity
