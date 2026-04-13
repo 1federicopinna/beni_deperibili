@@ -2,12 +2,29 @@ import random as rn
 import statistics as stats
 import pandas as pd
 import joblib
-from SimulatedAnnealing_v2 import SA, objective_function, neighbor_function, check_fidelity
+#from SimulatedAnnealing_v2 import SA, objective_function, neighbor_function, check_fidelity # da decommentare se si vouole generare le matrici di test e train
 import ast
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+
+_modello = None
+
+def _get_model(nome_modello="Mod_reg_poli/modello_pol_fo.pkl"):
+    global _modello
+    if _modello is None:
+        _modello = joblib.load(nome_modello)
+    return _modello
+
+def model_predict_2(S, s, i=4, nome_modello="modello_pol_fo.pkl"):
+    modello = _get_model()
+    X_test = pd.DataFrame([{"S": S, "s": s}])
+    return float(modello.predict(X_test)[0])
+
+def aggiornamento_modello():
+    global _modello
+    _modello = joblib.load("Mod_reg_poli/modello_pol_fo.pkl") 
 
 
 def creazione_dati(sa: SA, n_sim: int, n_days: int, seed=None, i=4) -> list:
@@ -120,6 +137,23 @@ def regressione():
 
     print("Regressione effettuata: R^2:", r2_score(y_test, y_pred))
 
+def regression_from_csv(csv_path:str=r"Mod_reg_poli/MatriceX_Dati.csv"):
+    matrice_reg = pd.read_csv(csv_path, sep=';')
+    pesi = calcolo_pesi_OLSW(matrice_X=csv_path)[1]
+
+    model = Pipeline([
+        ("polinomiale", PolynomialFeatures(degree=3, include_bias=False)),
+        ("lineare", LinearRegression())
+    ])
+
+    X_train = matrice_reg[["S", "s"]]
+    y_train = matrice_reg["Avg_fo"]
+    model.fit(X_train, y_train, lineare__sample_weight=pesi)
+
+    print("Salvo il modello")
+    joblib.dump(model, "Mod_reg_poli/modello_pol_fo.pkl")
+
+
 
 def test_modello_R2(nome_modello="modello_pol_fo.pkl"):
     modello_caricato = joblib.load(nome_modello)
@@ -150,44 +184,6 @@ def aggiornamento_modello(df_path=r"Mod_reg_poli\MatriceX_Dati.csv", model_path=
     # 8) risalvo modello
     joblib.dump(model, model_path)
 
-
-def aggiornamento_X_old(S, s, i, fo, df_path=r"Mod_reg_poli\MatriceX_Dati.csv"):
-    # Carico il file csv del modello trainato e converto il valore della colonna fo_list con la lista dei fo in lista
-    df = pd.read_csv(df_path, sep=";", converters={'fo_list': ast.literal_eval})
-    check_riga = (df['S'] == S) & (df['s'] == s) & (df['i'] == i)
-    # S;s;i;n_fo;fo_list;Avg_fo;Std_fo
-    if check_riga.any():
-        indice_riga = df.index[check_riga][0]
-        df.at[indice_riga, 'fo_list'].append(fo)
-        lista_fo_aggiornata = df.at[indice_riga, 'fo_list']
-        df.at[indice_riga, 'n_fo'] += 1
-        df.at[indice_riga, 'Avg_fo'] = stats.mean(lista_fo_aggiornata)
-        df.at[indice_riga, 'Std_fo'] = stats.std(lista_fo_aggiornata)
-    else:
-        if isinstance(fo, list):
-            nuova_lista = fo
-        else:
-            nuova_lista = [fo]
-        n_fo = len(nuova_lista)
-        media_iniziale = stats.mean(nuova_lista)
-        # La deviazione standard si calcola solo se abbiamo più di un valore, altrimenti è 0
-        deviazione_iniziale = stats.std(nuova_lista) if n_fo > 1 else 0
-        # C. Creiamo un dizionario che rappresenta la riga
-        dati_nuova_riga = {
-            'S': S,
-            's': s,
-            'i': i,
-            'n_fo': n_fo,
-            'fo_list': [nuova_lista],  # Nota: lo mettiamo in una lista per pandas
-            'Avg_fo': media_iniziale,
-            'Std_fo': deviazione_iniziale
-        }
-        # D. Trasformiamo il dizionario in un piccolo DataFrame di una riga
-        df_nuova_riga = pd.DataFrame(dati_nuova_riga)
-        # E. Incolliamo (concateniamo) la nuova riga al DataFrame principale
-        # ignore_index=True serve per far sì che la nuova riga prenda il numero successivo (es. 101)
-        df = pd.concat([df, df_nuova_riga], ignore_index=True)
-    df.to_csv(df_path, sep=";", index=False)
 
 
 def aggiornamento_X(S, s, i, fo, df_path=r"Mod_reg_poli\MatriceX_Dati.csv"):
@@ -236,20 +232,23 @@ def aggiornamento_X(S, s, i, fo, df_path=r"Mod_reg_poli\MatriceX_Dati.csv"):
 
 
 ####### AVVIO CODICE #######
-daily_penalty = 951.91 # riscritto per non rieseguire il codice
-n_days = 80  # anche se ho messo I =1 
-f_obj = objective_function(target_fr=0.95, daily_penalty=daily_penalty)
-
-f_ngh = neighbor_function(SM=23933, Sm=16417, sM=13165, sm=6567,
-                          # dq=(-20, -10, 10, 20),  # variazioni di q = (S - s)
-                          dq=(-80, -40, -20, -10, 10, 20, 40, 80),
-                          prob=(0.4, 0.4, 0.2)  # probabilità di agire solo su S, solo su s, su entrambi
-                          )
-f_fid = check_fidelity
-
-sa = SA(f_obj=f_obj, f_ngh=f_ngh, f_fid=f_fid, fidelity={1: 2 ** 2, 2: 2 ** 3, 3: 2 ** 4})  # creiamo l'oggetto sa
-
-# Creazione del modello
-
 if __name__ == '__main__':
-    regressione()
+#    daily_penalty = 951.91 # riscritto per non rieseguire il codice
+#    n_days = 80  # anche se ho messo I =1 
+#    f_obj = objective_function(target_fr=0.95, daily_penalty=daily_penalty)
+#    
+#    f_ngh = neighbor_function(SM=23933, Sm=16417, sM=13165, sm=6567,
+#                              # dq=(-20, -10, 10, 20),  # variazioni di q = (S - s)
+#                              dq=(-80, -40, -20, -10, 10, 20, 40, 80),
+#                              prob=(0.4, 0.4, 0.2)  # probabilità di agire solo su S, solo su s, su entrambi
+#                              )
+#    f_fid = check_fidelity
+#    
+#    sa = SA(f_obj=f_obj, f_ngh=f_ngh, f_fid=f_fid, fidelity={1: 2 ** 2, 2: 2 ** 3, 3: 2 ** 4})  # creiamo l'oggetto sa
+#    
+#    # Creazione del modello
+#    
+#    
+#    # regressione()
+#    #regression_from_csv()
+    pass
