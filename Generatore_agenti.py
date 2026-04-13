@@ -14,7 +14,7 @@ class GenP:
         Procedura:
             1. Genero tutti i clienti senza definire la loro politica d'acquisto. Oppure mettendo di default "controllano la scadenza, 
                 e con sconto del 100% accetterebbero shelf life di 5 giorni".
-            2. A ciascuno assegno una shelf life minima accettabile, segunedo la distribuzione (discr_min_sl) dei giorni accettabili-
+            2. A ciascuno assegno una shelf life minima accettabile, seguendo la distribuzione (discr_min_sl) dei giorni accettabili-
             3. A ciascuno setto il comportamento base: con probabilità del 60% guardano la scadenza (prob_guarda), con probabilità del 40% no (1-prob_guarda).
             4. Tra tutti i clienti si definisce chi e sensibile allo sconto:
                 4.1 si assume che chi non guarda la scadenza sia sensibile, quindi 1-prob_guarda sul totale è sensibile allo sconto;
@@ -23,9 +23,10 @@ class GenP:
                 4.3 i perimetri si dividono in non_sensibili e sensibili.
             5. Per chi è stato selezionato nel punto 4.2 (sensibili), si deve definire le shelf life che accetterebbero in caso di sconto.
                 5.1 Assumento che ogni agente:
-                    - sia sensibile ad una sola shelf life associata ad una singola scontistica;
-                    - sarà sensibile ad un prodotto scontato con shelf life strettamente minore della shelf life minima che comprerebbe: 
-                       - NOTA: per gli agenti con shelf life minima accettabile 1, si assume che siano disposti a comprare il prodotto a shelf life 1 anche senza sconto.
+                    - sia sensibile a una sola shelf life associata a una singola scontistica;
+                    - sarà sensibile a un prodotto scontato con shelf life strettamente minore della shelf life minima che comprerebbe:
+                       - NOTA: per gli agenti con shelf life minima accettabile 1, si assume che siano disposti a comprare il prodotto a shelf life 1
+                            anche senza sconto.
                 5.2 Si scelgono le shelf life accettare in caso di sconto usando la distribuzione di probabilità distri_discount_acceptance.
                 5.3 Si scelgono gli sconti associati in base alla cdf cdf_tabella_sconti.
 
@@ -33,10 +34,10 @@ class GenP:
     
     def __init__(self, 
                  discr_min_sl: Prob_mass_func ,
-                 prob_guarda: float, # probabilità sulla popolazion totale che un cliente guardi la shelf life residua 
+                 prob_guarda: float, # probabilità sulla popolazione totale che un cliente guardi la shelf life residua
                  prob_ag_sensibile: float, # probabilità sulla popolazione totale che un cliente sia sensibile agli sconti
                  distri_discount_acceptance: Prob_mass_func,
-                 cdf_tabella_sconti: Prob_mass_func
+                 cdf_tabella_sconti: dict[float, float]
                  ):
         
         ### DATI PER PUNTI 1 e 2 ###
@@ -77,7 +78,7 @@ class GenP:
             bt += [agente.copy(_msl = min_sl, _idx=f"{agente.pref_idx}{q}") for q in range(batch[min_sl])]
         return bt
     
-    def list_agent_sensibili(self, agenti_con_msl: list[Shopper]):
+    def list_agent_sensibili(self, agenti_con_msl: list[Shopper])-> tuple[list, list]:
 
         """ A partire dalla lista degli clienti con shelf life minima accettabile (generato con gen_agent_msl) costruisco la lista degli clienti
             sensibili agli sconti. Si assume che chi non guarda la scadenza sia automaticamente sensibile agli sconti.
@@ -130,13 +131,3 @@ class GenP:
                 agente.da = {_sl_agent: sconto_scelto}
 
         return agenti_sensibili
-
-
-"""
-conteggio = Counter(a.msl for a in agenti)
-
-print("Distribuzione Shelf Life:")
-for sl, qta in sorted(conteggio.items()):
-    print(f"Shelf Life {sl}: {qta} agenti")
-"""
-
