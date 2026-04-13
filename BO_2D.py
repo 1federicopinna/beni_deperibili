@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     res = gp_minimize(
         func=f,
-        dimensions=[Integer(12000, 23933, name='S'),
+        dimensions=[Integer(16417, 23933, name='S'),
                     Integer(6567, 13165, name='s')],
         acq_func="EI",
         n_calls=80,

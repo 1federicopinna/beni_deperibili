@@ -45,8 +45,8 @@ ideal_vals = Theoretical_SsI_Values(demand = dd,
 # valori ottimi teorici per i=4 -> S: 20230, s: 10206
 # valori ottimi per BO 2D per i=4 -> S: 16417 s: 8134 fo media migliore: 501371.58875
 # valori ottimi per SA per i=4 -> S: 17566, s: 8549 fo migliore: 504065.4243423543
-Pol = Policy(s = 10206, 
-            S = 20230, 
+Pol = Policy(s = 8134,
+            S = 16417,
             I = 4, 
             m_q = 50, # lotto minimo
             m_qw = 5,  # lotto minimo in caso di reso per scadenza

@@ -880,7 +880,7 @@ if __name__ == "__main__":
     daily_penalty = 951.91
     n_days = 80  # 20*I
     f_obj = objective_function(target_fr=0.95, daily_penalty=daily_penalty)
-    f_ngh = neighbor_function(SM=23933, Sm=12000, sM=13165, sm=6567,
+    f_ngh = neighbor_function(SM=23933, Sm=16417, sM=13165, sm=6567, #Sm è stato modificato a 12000 perché mi sembrava che il SA tendesse ad andare più sotto
                               dq=(-1200, -600, -300, -150, 150, 300, 600, 1200), # variazioni di q = (S - s)
                           #dq=(-80, -40, -20, -10, 10, 20, 40, 80),
                           #dq=(-20, -10, 10, 20),  # variazioni di q = (S - s)
@@ -906,7 +906,7 @@ if __name__ == "__main__":
                              T_cooling_rate=0.85,
                              n_days=n_days,  # 80
                              n_run_era=n_run_per_era,  # 1143
-                             n_no_imp=1000,
+                             n_no_imp=5000,
                              tot_time=True)
 
     print(f"Durata {best_4[2]} secondi. Soluzione migliore {best_4[0]}, fo migliore: {best_4[1]}")
