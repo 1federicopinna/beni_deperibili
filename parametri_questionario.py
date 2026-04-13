@@ -68,7 +68,7 @@ distri_discount_acceptance: Prob_mass_func = { # Probabilità che un prodotto co
 }
 
 
-cdf_tabella_sconti: Prob_mass_func = { # probabilità cumulata sconto
+cdf_tabella_sconti: dict[float, float] = { # probabilità cumulata sconto
     0.10: 0.05,
     0.15: 0.07,
     0.20: 0.12,
