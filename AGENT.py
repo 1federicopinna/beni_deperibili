@@ -346,7 +346,7 @@ class Shopper:
             )
 
 
-    def copy(self, _msl:Optional[int] = None, _idx: Optional[int] = None) -> Shopper:
+    def copy(self, _msl:Optional[int] = None, _idx: Optional[str] = None) -> Shopper:
             """ metodo che crea una copia di Shopper con una diversa shelf life minima accettata"""
             if _msl is None: _msl = self.msl
             if _idx is None: _idx = self.idx
